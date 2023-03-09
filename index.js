@@ -1,4 +1,5 @@
 const express = require('express');
+const { ObjectId } = require("mongodb");
 require('dotenv').config();
 const mongo = require('./config/mongo');
 
@@ -12,7 +13,9 @@ server.get('/funcionarios/folha', async (req,res) => {
     
     let salarios = [];
     
-    funcionarios.forEach((funcionario,index) => {
+    funcionarios.forEach(async (funcionario,index) => {
+        // const funcionarios = await db.collection('transacoes').find({ "funcionario.cpf": funcionario.cpf }).toArray();
+        // console.log(funcionarios)
         salarios[index] = {
             nome: funcionario.nome,
             sobrenome: funcionario.sobrenome,
@@ -22,6 +25,21 @@ server.get('/funcionarios/folha', async (req,res) => {
     })
 
     return res.status(200).json(salarios);
+})
+
+server.get('/transacoes/produtos', async (req, res) => {
+    try {
+        const db = await mongo();
+        const produtos = await db.collection('transacoes').find({ 
+            itens: { $elemMatch: 
+                { codigo_de_barras: Number(req.query.codigo_de_barras) }
+            } 
+        }).toArray();
+        return res.status(201).json(produtos)
+    } catch (e) {
+        console.log(e)
+        return res.status(400).json({ error: "Erro na operação"})
+    }
 })
 
 server.post('/transacoes', async (req, res) => {
@@ -77,6 +95,21 @@ server.get('/transacoes', async (req, res) => {
     }
 });
 
+server.get('/funcionarios/busca', async (req, res) => {
+    try {
+        const db = await mongo();
+        const users = await db.collection('funcionarios').find({ 
+            nome: req.query.nome,
+            cnis: req.query.cnis,
+            "cargo.nome": req.query.cargo 
+        }).toArray();
+        return res.status(201).json(users)
+    } catch (e) {
+        console.log(e)
+        return res.status(400).json({ error: "Erro na operação"})
+    }
+});
+
 server.post('/funcionarios', async (req, res) => {
     try {
         const db = await mongo();
@@ -108,6 +141,19 @@ server.get('/funcionarios', async (req, res) => {
     }
 });
 
+server.get('/produtos/busca', async (req, res) => {
+    try {
+        const db = await mongo();
+        const users = await db.collection('produtos').find({ 
+            $or: [{ nome: req.query.nome, categoria: req.query.categoria }]
+        }).toArray();
+        return res.status(201).json(users)
+    } catch (e) {
+        console.log(e)
+        return res.status(400).json({ error: "Erro na operação"})
+    }
+});
+
 server.post('/produtos', async (req, res) => {
     try {
         const db = await mongo();
@@ -126,6 +172,21 @@ server.post('/produtos', async (req, res) => {
     }
 });
 
+server.patch('/produtos/:categoria', async (req, res) => {
+    try {
+        const db = await mongo();
+        const products = await db.collection('produtos').updateMany({ 
+            categoria: req.params.categoria 
+        },
+        { $set: { quantidade_em_estoque: Number(req.body.quantidade) }
+        });
+        return res.status(200).json(products)
+    } catch (e) {
+        console.log(e)
+        return res.status(400).json({ error: "Erro na operação"})
+    }
+});
+
 server.get('/produtos', async (req, res) => {
     try {
         const db = await mongo();
@@ -134,6 +195,46 @@ server.get('/produtos', async (req, res) => {
     } catch (e) {
         console.log(e)
         return res.status(400).json({ error: "Erro na operação"})
+    }
+});
+
+server.put('/cargos/:id', async (req, res) => {
+    try {
+        const db = await mongo();
+        const offices = await db.collection('cargos').updateOne(
+            { _id: new ObjectId(req.params.id) },
+            { $set: {nome: req.body.nome, descricao: req.body.descricao, faixa_salarial: req.body.faixa_salarial } }
+        )
+        return res.status(200).json(offices)
+    } catch (e) {
+        console.log(e)
+        return res.status(400).json({ error: "Erro na operação" })
+    }
+});
+
+server.delete('/cargos/deletar/nome/:nome', async (req, res) => {
+    try {
+        const db = await mongo();
+        const offices = await db.collection('cargos').deleteMany(
+            { nome: req.params.nome },
+        )
+        return res.status(204).json(offices)
+    } catch (e) {
+        console.log(e)
+        return res.status(400).json({ error: "Erro na operação" })
+    }
+});
+
+server.delete('/cargos/:id', async (req, res) => {
+    try {
+        const db = await mongo();
+        const offices = await db.collection('cargos').deleteOne(
+            { _id: new ObjectId(req.params.id) },
+        )
+        return res.status(204).json(offices)
+    } catch (e) {
+        console.log(e)
+        return res.status(400).json({ error: "Erro na operação" })
     }
 });
 
@@ -163,4 +264,4 @@ server.get('/cargos', async (req, res) => {
     }
 });
 
-server.listen(3000);
+server.listen(3332);
