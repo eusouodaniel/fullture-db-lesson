@@ -7,6 +7,17 @@ const server = express();
 
 server.use(express.json());
 
+server.put('/funcionarios', async (req,res) => {
+    const db = await mongo();
+
+    await db.collection('funcionarios').updateMany(
+        { },
+        { $set: { cnis: req.body.cnis }, $unset: { rg: "" }  }
+    )
+
+    return res.status(200).json("OK");
+})
+
 server.get('/funcionarios/folha', async (req,res) => {
     const db = await mongo();
     const funcionarios = await db.collection('funcionarios').find({}).toArray();
@@ -25,6 +36,17 @@ server.get('/funcionarios/folha', async (req,res) => {
     })
 
     return res.status(200).json(salarios);
+})
+
+server.delete('/transacoes', async (req, res) => {
+    try {
+        const db = await mongo();
+        const transacao = await db.collection('transacoes').deleteMany({});
+        return res.status(204).json(transacao)
+    } catch (e) {
+        console.log(e)
+        return res.status(400).json({ error: "Erro na operação"})
+    }
 })
 
 server.get('/transacoes/produtos', async (req, res) => {
@@ -95,14 +117,30 @@ server.get('/transacoes', async (req, res) => {
     }
 });
 
-server.get('/funcionarios/busca', async (req, res) => {
+server.get('/funcionarios/busca/salario', async (req, res) => {
     try {
         const db = await mongo();
         const users = await db.collection('funcionarios').find({ 
-            nome: req.query.nome,
-            cnis: req.query.cnis,
-            "cargo.nome": req.query.cargo 
+            "cargo.salario": { $lt: Number(req.query.salario) }
         }).toArray();
+        return res.status(201).json({
+            users,
+            count: users.length
+        })
+    } catch (e) {
+        console.log(e)
+        return res.status(400).json({ error: "Erro na operação"})
+    }
+});
+
+server.get('/funcionarios/busca', async (req, res) => {
+    try {
+        const db = await mongo();
+        const users = await db.collection('funcionarios').find({ $and: [{ 
+            nome: req.query.nome,
+            cnis: Number(req.query.cnis),
+            "cargo.salario": { $gt: Number(req.query.salario) }
+        }]}).toArray();
         return res.status(201).json(users)
     } catch (e) {
         console.log(e)
@@ -135,6 +173,22 @@ server.get('/funcionarios', async (req, res) => {
         const db = await mongo();
         const users = await db.collection('funcionarios').find({}).toArray();
         return res.status(201).json(users)
+    } catch (e) {
+        console.log(e)
+        return res.status(400).json({ error: "Erro na operação"})
+    }
+});
+
+server.get('/produtos/busca/categoria', async (req, res) => {
+    try {
+        const db = await mongo();
+        const products = await db.collection('produtos').find({ 
+            categoria: { $in: [ req.query.categoria1, req.query.categoria2 ] }
+        }).toArray();
+        return res.status(201).json({
+            products,
+            count: products.length
+        })
     } catch (e) {
         console.log(e)
         return res.status(400).json({ error: "Erro na operação"})
@@ -247,6 +301,22 @@ server.post('/cargos', async (req, res) => {
             "faixa_salarial": req.body.faixa_salarial
         })
         return res.status(201).json(offices)
+    } catch (e) {
+        console.log(e)
+        return res.status(400).json({ error: "Erro na operação" })
+    }
+});
+
+server.get('/cargos/busca/faixa-salarial', async (req, res) => {
+    try {
+        const db = await mongo();
+        const offices = await db.collection('cargos').find({
+            faixa_salarial: { $exists: true }
+        }).toArray();
+        return res.status(201).json({
+            offices,
+            count: offices.length
+        })
     } catch (e) {
         console.log(e)
         return res.status(400).json({ error: "Erro na operação" })
